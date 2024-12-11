@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
-import 'package:http_parser/http_parser.dart';
-import 'package:path_provider/path_provider.dart';
 
 class PhotoScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
+  final String pipeId;
 
-  PhotoScreen(this.cameras);
+  PhotoScreen({required this.cameras, required this.pipeId});
 
   @override
   State<PhotoScreen> createState() => _PhotoScreenState();
@@ -16,24 +16,14 @@ class PhotoScreen extends StatefulWidget {
 
 class _PhotoScreenState extends State<PhotoScreen> {
   late CameraController controller;
-  bool _isTakingPhoto = false;
-  String _imagePath = '';
+  int _selectedCameraIndex = 0;
+  bool _isFlashOn = false;
+  bool _isFrontCamera = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.cameras.isNotEmpty) {
-      controller = CameraController(widget.cameras[0], ResolutionPreset.high);
-      controller.initialize().then((_) {
-        if (mounted) {
-          setState(() {});
-        }
-      }).catchError((e) {
-        print("Error initializing camera: $e");
-      });
-    } else {
-      print("No cameras available");
-    }
+    _initCamera(_selectedCameraIndex);
   }
 
   @override
@@ -42,150 +32,147 @@ class _PhotoScreenState extends State<PhotoScreen> {
     super.dispose();
   }
 
-  Future<void> _takePhoto() async {
-    if (!_isTakingPhoto) {
-      setState(() {
-        _isTakingPhoto = true;
-      });
-
-      try {
-        final XFile file = await controller.takePicture();
-        final directory = await getTemporaryDirectory();
-        final path = '${directory.path}/photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-        await file.saveTo(path);
-        
-        setState(() {
-          _imagePath = path;
-        });
-
-        _showUploadDialog();
-      } catch (e) {
-        print("Error taking photo: $e");
-        setState(() {
-          _isTakingPhoto = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _uploadImageToServer(String imagePath) async {
-    final Uri url = Uri.parse('http://192.168.1.42:5000/api/pipes/1/images/');
-    final request = http.MultipartRequest('POST', url)
-      ..headers.addAll({'Accept': 'application/json'});
-
-    final file = await http.MultipartFile.fromPath(
-      'image',
-      imagePath,
-      contentType: MediaType('image', 'jpeg'),
+  Future<void> _initCamera(int cameraIndex) async {
+    controller = CameraController(
+      widget.cameras[cameraIndex],
+      ResolutionPreset.max,
     );
-    request.files.add(file);
 
     try {
-      final response = await request.send();
-      final responseData = await response.stream.toBytes();
-      final responseString = String.fromCharCodes(responseData);
-
-      if (response.statusCode == 200) {
-        print('Image uploaded successfully: $responseString');
-        Navigator.pop(context); 
-      } else {
-        print('Failed to upload image: ${response.statusCode}');
-        print('Error details: $responseString');
-        Navigator.pop(context); 
-        _showErrorDialog('Failed to upload image: ${response.statusCode}');
-      }
+      await controller.initialize();
+      setState(() {
+        _isFrontCamera = cameraIndex == 1; // Ajustar según la configuración de tus cámaras
+      });
     } catch (e) {
-      print('Error uploading image: $e');
-      Navigator.pop(context); 
-      _showErrorDialog('Error uploading image: $e');
+      print("Error initializing camera: $e");
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Upload Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+  void _toggleFlashLight() {
+    if (_isFlashOn) {
+      controller.setFlashMode(FlashMode.off);
+      setState(() {
+        _isFlashOn = false;
+      });
+    } else {
+      controller.setFlashMode(FlashMode.torch);
+      setState(() {
+        _isFlashOn = true;
+      });
+    }
   }
 
-  void _showUploadDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Upload Image'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(labelText: 'Title'),
-                onChanged: (value) {
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (_imagePath.isNotEmpty) {
-                  _uploadImageToServer(_imagePath);
-                } else {
-                  print('Image path is empty');
-                }
-              },
-              child: Text('Upload'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                File(_imagePath).delete();
-                setState(() {
-                  _imagePath = '';
-                });
-              },
-              child: Text('Discard'),
-            ),
-          ],
+  void _switchCamera() async {
+    if (controller != null) {
+      await controller.dispose();
+    }
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % widget.cameras.length;
+    _initCamera(_selectedCameraIndex);
+  }
+
+  Future<void> _capturePhoto() async {
+    try {
+      final XFile photo = await controller.takePicture();
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await photo.saveTo(path);
+
+      // Enviar la imagen al servidor
+      final response = await _uploadPhoto(File(path));
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo uploaded successfully: ${response.body}')),
         );
-      },
-    );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload photo: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      print("Error capturing photo: $e");
+    }
+  }
+
+  Future<http.Response> _uploadPhoto(File photo) async {
+    final uri = Uri.parse('http://192.168.1.42:5000/api/pipes/${widget.pipeId}/images/');
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(await http.MultipartFile.fromPath('image', photo.path));
+
+    final streamedResponse = await request.send();
+    return await http.Response.fromStream(streamedResponse);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Take Photos')),
-      body: Column(
-        children: [
-          controller.value.isInitialized
-              ? CameraPreview(controller)
-              : Center(child: CircularProgressIndicator()),
-
-          IconButton(
-            icon: Icon(Icons.camera_alt),
-            onPressed: _takePhoto,
-          ),
-          Expanded(
-            child: _imagePath.isNotEmpty
-                ? Image.file(File(_imagePath))
-                : Center(child: Text('No image selected')),
-          ),
-        ],
+    return SafeArea(
+      child: Scaffold(
+        body: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: controller.value.isInitialized
+                      ? CameraPreview(controller)
+                      : Center(child: CircularProgressIndicator()),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 50,
+                    color: Colors.black.withOpacity(0.5),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                            color: Colors.white,
+                          ),
+                          onPressed: _toggleFlashLight,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 130,
+                    color: Colors.black.withOpacity(0.7),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.cameraswitch,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          onPressed: _switchCamera,
+                        ),
+                        GestureDetector(
+                          onTap: _capturePhoto,
+                          child: Container(
+                            height: 70,
+                            width: 70,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

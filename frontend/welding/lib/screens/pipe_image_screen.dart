@@ -157,7 +157,7 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            _createRoute(PhotoScreen(widget.cameras)),
+            _createRoute(PhotoScreen(cameras: widget.cameras , pipeId: widget.pipeId)),
           );
         },
         child: const Icon(Icons.camera_alt),
