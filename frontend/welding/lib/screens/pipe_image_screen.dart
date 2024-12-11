@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:camera/camera.dart';
+import 'package:welding/screens/photo_screen.dart';
+
 
 class PipeDetailsScreen extends StatefulWidget {
+  
   final String pipeName;
   final String comment;
   final String pipeId;
+  final List<CameraDescription> cameras;
 
   const PipeDetailsScreen({
     Key? key,
     required this.pipeName,
     required this.comment,
     required this.pipeId,
+    required this.cameras,
   }) : super(key: key);
 
   @override
@@ -44,6 +50,23 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
       throw Exception('No load images');
     }
   }
+
+  Route _createRoute(Widget screen) {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => screen,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(1.0, 0.0);
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+      var offsetAnimation = animation.drive(tween);
+
+      return SlideTransition(position: offsetAnimation, child: child);
+    },
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +152,15 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            _createRoute(PhotoScreen(widget.cameras)),
+          );
+        },
+        child: const Icon(Icons.camera_alt),
       ),
     );
   }

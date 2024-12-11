@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:welding/main.dart';
 import 'dart:convert';
 import 'package:welding/screens/pipe_image_screen.dart';
+import 'package:camera/camera.dart';
 
+List<CameraDescription> cameras = [];
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -54,6 +57,7 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
         pipeId: pipe['pipe_id'].toString(), 
         pipeName: pipe['name'],
         comment: pipe['comment'],
+        cameras: cameras,
       ),
     ),
   );
@@ -224,6 +228,7 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
         },
         child: const Icon(Icons.add),
       ),
+      
     );
   }
 }
