@@ -38,3 +38,4 @@ def update_pipe(pipe_id: int, pipe: Pipe, session: Session = Depends(get_session
 @router.delete("/pipes/{pipe_id}")
 def delete_pipe(pipe_id: int, session: Session = Depends(get_session)):
     return PipeController.delete_pipe(pipe_id, session)
+

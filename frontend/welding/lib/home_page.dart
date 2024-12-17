@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:welding/main.dart';
 import 'dart:convert';
 import 'package:welding/screens/pipe_image_screen.dart';
 import 'package:camera/camera.dart';
@@ -23,46 +22,47 @@ class _HomePageState extends State<HomePage> {
     fetchPipes();
   }
 
-Future<void> fetchPipes() async {
-  final response = await http.get(
-    Uri.parse('http://192.168.1.42:5000/api/pipes/'),
-    headers: {'Content-Type': 'application/json'},
-  );
+  Future<void> fetchPipes() async {
+    final response = await http.get(
+      Uri.parse('http://192.168.1.42:5000/api/pipes/'),
+      headers: {'Content-Type': 'application/json'},
+    );
 
-  if (response.statusCode == 200) {
-    List<dynamic> data = json.decode(response.body);
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
 
-    setState(() {
-      pipesData = data.map((item) {
-        return {
-          'pipe_id': item['pipe_id'],
-          'name': item['name'],
-          'comment': item['comment'] ?? 'No comment available',
-          'images': List<String>.from(item['images'] ?? []), 
-        };
-      }).toList();
-    });
-  } else {
-    throw Exception('Failed to load pipes');
+      setState(() {
+        pipesData = data.map((item) {
+          return {
+            'pipe_id': item['pipe_id'],
+            'name': item['name'],
+            'comment': item['comment'] ?? 'No comment available',
+            'images': List<String>.from(item['images'] ?? []),
+          };
+        }).toList();
+      });
+    } else {
+      throw Exception('Failed to load pipes');
+    }
   }
-}
 
+  Future<void> _refreshData() async {
+    await fetchPipes();
+  }
 
-
-void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => PipeDetailsScreen(
-        pipeId: pipe['pipe_id'].toString(), 
-        pipeName: pipe['name'],
-        comment: pipe['comment'],
-        cameras: cameras,
+  void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PipeDetailsScreen(
+          pipeId: pipe['pipe_id'].toString(),
+          pipeName: pipe['name'],
+          comment: pipe['comment'],
+          cameras: cameras,
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   Future<void> showCreatePipeDialog(BuildContext context) async {
     final TextEditingController pipeNameController = TextEditingController();
@@ -80,17 +80,13 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
                 controller: pipeNameController,
                 decoration: InputDecoration(labelText: "Pipe Name"),
               ),
-              TextField(
-                controller: pipeCommentController,
-                decoration: InputDecoration(labelText: "Pipe Comment"),
-              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
                 String name = pipeNameController.text;
-                String comment = pipeCommentController.text;
+                String comment = pipeCommentController.text = "Revision";
                 createPipe(name, comment);
                 Navigator.pop(context);
               },
@@ -117,7 +113,7 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
         'comment': comment,
       }),
     );
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200) {
       fetchPipes();
     }
   }
@@ -148,75 +144,78 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
             ),
           ),
           Positioned.fill(
-            child: Container(
-              margin: const EdgeInsets.only(top: 100, left: 10, right: 10, bottom: 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF1E88E5),
-                    Color(0xFF64B5F6),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(10),
-                  bottomLeft: Radius.circular(10),
-                  bottomRight: Radius.circular(20),
-                  topRight: Radius.circular(80),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0xFF64B5F6),
-                    offset: Offset(3, 6),
-                    blurRadius: 10,
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: Container(
+                margin: const EdgeInsets.only(top: 100, left: 10, right: 10, bottom: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF1E88E5),
+                      Color(0xFF64B5F6),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Text(
-                      "Pipes",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(20),
+                    topRight: Radius.circular(80),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF64B5F6),
+                      offset: Offset(3, 6),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Text(
+                        "Pipes",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: pipesData.length,
-                      itemBuilder: (context, index) {
-                        final pipe = pipesData[index];
-                        return GestureDetector(
-                          onTap: () {
-                            navigateToPipeDetails(context, pipe);
-                          },
-                          child: Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
-                            ),
-                            elevation: 4.0,
-                            child: ListTile(
-                              title: Text(
-                                pipe['name'],
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: pipesData.length,
+                        itemBuilder: (context, index) {
+                          final pipe = pipesData[index];
+                          return GestureDetector(
+                            onTap: () {
+                              navigateToPipeDetails(context, pipe);
+                            },
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8.0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              elevation: 4.0,
+                              child: ListTile(
+                                title: Text(
+                                  pipe['name'],
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -228,7 +227,6 @@ void navigateToPipeDetails(BuildContext context, Map<String, dynamic> pipe) {
         },
         child: const Icon(Icons.add),
       ),
-      
     );
   }
 }
