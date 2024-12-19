@@ -41,7 +41,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
     try {
       await controller.initialize();
       setState(() {
-        _isFrontCamera = cameraIndex == 1; // Ajustar según la configuración de tus cámaras
+        _isFrontCamera = cameraIndex == 1;
       });
     } catch (e) {
       print("Error initializing camera: $e");

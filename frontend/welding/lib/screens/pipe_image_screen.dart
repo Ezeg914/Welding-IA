@@ -26,13 +26,13 @@ class PipeDetailsScreen extends StatefulWidget {
 class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
   late Future<List<Map<String, dynamic>>> imageList;
   late TextEditingController _commentController;
-  late String _localComment; // Variable local para el comentario
+  late String _localComment; 
 
   @override
   void initState() {
     super.initState();
     imageList = fetchImages();
-    _localComment = widget.comment; // Inicializa el comentario localmente
+    _localComment = widget.comment;
     _commentController = TextEditingController(text: _localComment);
   }
 
@@ -66,7 +66,7 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
 
     if (response.statusCode == 200) {
       setState(() {
-        imageList = fetchImages(); // Refresh images after deletion
+        imageList = fetchImages(); 
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Imagen eliminada correctamente')),
@@ -110,7 +110,7 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
 
     if (response.statusCode == 200) {
       setState(() {
-        _localComment = newComment;  // Actualiza el comentario localmente
+        _localComment = newComment;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Comentario actualizado correctamente')),
@@ -122,16 +122,16 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
     }
   }
 
-  // Función llamada cuando se guarda el comentario
+  
   void _onSaveComment() {
     String newComment = _commentController.text;
     if (newComment.isNotEmpty) {
       editComment(newComment, widget.pipeName, widget.pipeId);
-      Navigator.of(context).pop(); // Cierra el diálogo después de guardar
+      Navigator.of(context).pop(); 
     }
   }
 
-  // Función para mostrar la imagen en un diálogo
+  
   void showImageDialog(Map<String, dynamic> imageData) {
     showDialog(
       context: context,
@@ -150,8 +150,8 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
                 const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Cerrar el diálogo
-                    deleteImage(imageData['id']); // Pasar directamente el ID de la imagen
+                    Navigator.pop(context);
+                    deleteImage(imageData['id']); 
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor:Color.fromARGB(255, 4, 110, 172),
@@ -184,7 +184,6 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
           IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () {
-              // Confirmación antes de eliminar
               showDialog(
                 context: context,
                 builder: (context) {
@@ -194,14 +193,14 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
                     actions: [
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(context); // Cerrar el diálogo
+                          Navigator.pop(context);
                         },
                         child: const Text('Cancelar'),
                       ),
                       TextButton(
                         onPressed: () {
-                          deletePipe(widget.pipeId); // Llamada a la función para eliminar el pipe
-                          Navigator.pop(context); // Cerrar el diálogo después de la eliminación
+                          deletePipe(widget.pipeId);
+                          Navigator.pop(context);
                         },
                         child: const Text('Eliminar'),
                       ),
@@ -227,13 +226,13 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
                     actions: <Widget>[
                       TextButton(
                         onPressed: () {
-                          Navigator.of(context).pop(); // Cerrar el diálogo
+                          Navigator.of(context).pop();
                         },
                         child: const Text('Cancelar'),
                       ),
                       TextButton(
                         onPressed: () {
-                          _onSaveComment(); // Llamada a la función que guarda el comentario
+                          _onSaveComment();
                         },
                         child: const Text('Guardar'),
                       ),
@@ -260,7 +259,7 @@ class _PipeDetailsScreenState extends State<PipeDetailsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _localComment, // Usa la variable local en lugar de widget.comment
+              _localComment,
               style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
             const SizedBox(height: 16),
